@@ -25,6 +25,9 @@ from .views import PostListView, PostDetailView, PostCreateView, PostUpdateView,
 
 # Class based view URLs
 urlpatterns = [
+    # API URLs
+    path('post/list/', views.view_posts, name='post-list'),
+
     path('', PostListView.as_view(), name='blog-home'),
     path('post/<int:pk>/', PostDetailView.as_view(), name='post-detail'),
     path('user/<str:username>/posts', UserPostListView.as_view(), name='user-posts'),

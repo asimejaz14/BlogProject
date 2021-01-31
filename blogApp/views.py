@@ -1,5 +1,11 @@
+import datetime
+
+import xlwt
 from django.contrib.auth.models import User
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, get_object_or_404
+from rest_framework.decorators import api_view
+
 from .models import Post
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
@@ -12,6 +18,7 @@ from django.contrib.messages.views import SuccessMessageMixin
 #     title = 'Home'
 #     return render(request, 'blogApp/home.html', context={'posts': posts,
 #                                                          'title': title})
+from .serializers import PostSerializer
 
 
 class PostListView(ListView):
@@ -84,3 +91,56 @@ class UserPostListView(ListView):
 def about(request):
     title = "About"
     return render(request, 'blogApp/about.html', context={'title': title})
+
+
+
+
+@api_view(['GET',])
+def view_posts(request):
+    download_file = request.query_params.get('download')
+    filters = {}
+    filters['date_posted__date'] = datetime.datetime.today()
+    posts = Post.objects.all()
+    serialized_posts = PostSerializer(posts, many=True)
+    excel_data = []
+    for data in serialized_posts.data:
+        s = dict(data)
+        excel_data.append(s)
+    # return HttpResponse(serialized_posts.data)
+    column_names = ['Image', 'Author', 'Title', 'Date Posted', 'Thumbnail', ]
+    if download_file:
+        return export_users_xls(column_names, excel_data)
+
+    return JsonResponse(serialized_posts.data, safe=False)
+
+
+def export_users_xls(column_names, excel_data):
+    response = HttpResponse(content_type='application/ms-excel')
+    response['Content-Disposition'] = 'attachment; filename="test-excel.xls"'
+
+    wb = xlwt.Workbook(encoding='utf-8')
+    ws = wb.add_sheet('Users')
+
+    # Sheet header, first row
+    row_num = 0
+
+    font_style = xlwt.XFStyle()
+    font_style.font.bold = True
+
+    columns = column_names
+
+    for col_num in range(len(columns)):
+        ws.write(row_num, col_num, columns[col_num], font_style)
+
+    # Sheet body, remaining rows
+    font_style = xlwt.XFStyle()
+
+    for row_keys in excel_data:
+        row_num += 1
+        col_num = 0
+        for key in row_keys:
+
+            ws.write(row_num, col_num, row_keys[key], font_style)
+            col_num += 1
+    wb.save(response)
+    return response
