@@ -2,9 +2,11 @@ import datetime
 
 import xlwt
 from django.contrib.auth.models import User
+from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, get_object_or_404
 from rest_framework.decorators import api_view
+from rest_framework.pagination import LimitOffsetPagination
 
 from .models import Post
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
@@ -97,12 +99,19 @@ def about(request):
 
 @api_view(['GET',])
 def view_posts(request):
+    search_word = request.query_params.get('search')
     download_file = request.query_params.get('download')
-    filters = {}
-    filters['date_posted__date'] = datetime.datetime.today()
-    posts = Post.objects.all()
+    filters = {'date_posted__gte': datetime.datetime.today() - datetime.timedelta(days=60)}
+
+    posts = Post.objects.filter(Q(title__icontains=search_word) | Q(content__icontains=search_word) | Q(author__first_name__icontains=search_word), **filters)
+    # paginate = LimitOffsetPagination()
+    # paginated_posts = paginate.paginate_queryset(posts, request)
+
     serialized_posts = PostSerializer(posts, many=True)
+
+
     excel_data = []
+
     for data in serialized_posts.data:
         s = dict(data)
         excel_data.append(s)
